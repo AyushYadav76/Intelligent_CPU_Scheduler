@@ -93,3 +93,6 @@ def round_robin(processes, quantum):
             process.waiting_time = process.turnaround_time - process.burst
             completed.append(process)
     return completed
+
+# for process in scheduled:
+#     print(f"Process {process.pid}: Start {process.start_time}, Completion {process.completion_time}")
