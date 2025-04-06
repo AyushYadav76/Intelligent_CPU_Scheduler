@@ -1,10 +1,42 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
+from ttkthemes import ThemedTk
 from scheduler import fcfs, round_robin, sjf, priority_scheduling, preemptive_sjf, priority_preemptive
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import random
 
+class Tooltip:
+    def __init__(self, widget, text):
+        self.widget = widget
+        self.text = text
+        self.tooltip_window = None
+
+        widget.bind("<Enter>", self.show_tooltip)
+        widget.bind("<Leave>", self.hide_tooltip)
+
+    def show_tooltip(self, event=None):
+        if self.tooltip_window or not self.text:
+            return
+
+        x = self.widget.winfo_rootx() + 20
+        y = self.widget.winfo_rooty() + self.widget.winfo_height() + 10
+
+        self.tooltip_window = tw = tk.Toplevel(self.widget)
+        tw.wm_overrideredirect(True)
+        tw.wm_geometry(f"+{x}+{y}")
+        label = tk.Label(tw, text=self.text, background="#ffffe0", relief="solid", borderwidth=1,
+                         font=("Arial", 9), padx=4, pady=2)
+        label.pack()
+
+    def hide_tooltip(self, event=None):
+        if self.tooltip_window:
+            self.tooltip_window.destroy()
+            self.tooltip_window = None
+
+def add_hover_effect(widget):
+    widget.bind("<Enter>", lambda e: widget.configure(style="Hover.TButton"))
+    widget.bind("<Leave>", lambda e: widget.configure(style="TButton"))
 
 process_list = []
 
@@ -325,93 +357,162 @@ def draw_animated_gantt_chart(timeline):
                                   frames=len(timeline), interval=800, blit=False, repeat=False)
     plt.show()
 
-# GUI setup
-root = tk.Tk()
-root.title("CPU Scheduler Simulator")
 
-process_list = []
+# --- Root window styling ---
+root = ThemedTk(theme="arc")
+root.title("CPU Scheduler Simulator")
+root.configure(bg="#f5f7fa")  # Light background
+
+default_font = ("Segoe UI", 10)
+root.option_add("*Font", default_font)
+
+# --- ttk Style Enhancements ---
+style = ttk.Style()
+style.theme_use('default')
+
+separator = ttk.Separator(root, orient="horizontal")
+separator.pack(fill="x", pady=5)
+
+style.configure(".", background="#f5f7fa")
+style.configure("TLabel", background="#f5f7fa")
+style.configure("TCheckbutton", background="#f5f7fa")
+
+# Base TButton style
+style.configure("TButton",
+    padding=8,
+    relief="flat",
+    background="#4a90e2",
+    foreground="white",
+    font=('Segoe UI', 10, 'bold'),
+    borderwidth=0
+)
+style.map("TButton",
+    background=[('active', '#357ab7'), ('pressed', '#2c5aa0')],
+    foreground=[('active', 'white')]
+)
+
+# Other widgets
+style.configure("TEntry",
+    relief="flat",
+    padding=6,
+    font=('Segoe UI', 10)
+)
+
+style.configure("TCombobox",
+    padding=6,
+    font=('Segoe UI', 10)
+)
+
+# --- Styling for all labels ---
+label_style = {"bg": "#f0f0f0", "fg": "#000000"}
+
 algorithm_var = tk.StringVar(value="FCFS")
 
 # --- Top Dropdown ---
-frame_top = tk.Frame(root)
-frame_top.pack(pady=10)
+frame_top = ttk.LabelFrame(root, text="Select Algorithm", padding=10)
+frame_top.pack(pady=10, padx=10, fill="x")
 
-tk.Label(frame_top, text="Select Scheduling Algorithm:").pack(side=tk.LEFT)
+tk.Label(frame_top, text="Select Scheduling Algorithm:", **label_style).pack(side=tk.LEFT)
 
 algorithm_dropdown = ttk.Combobox(frame_top, textvariable=algorithm_var,
                                   values=["FCFS", "SJF", "SJF (Preemptive)", "Round Robin", 
                                           "Priority Scheduling", "Priority Scheduling (Preemptive)"],
                                   state="readonly")
 algorithm_dropdown.pack(side=tk.LEFT, padx=10)
+Tooltip(algorithm_dropdown, "Choose a scheduling algorithm")
 
-# --- Input Fields ---
-frame_input = tk.Frame(root)
-frame_input.pack(pady=10)
+# --- Input Fields Frame with border ---
+frame_input = ttk.LabelFrame(root, text="Add New Process", padding=10)
+frame_input.pack(pady=10, padx=10, fill="x")
 
-tk.Label(frame_input, text="Process ID").grid(row=0, column=0)
-tk.Label(frame_input, text="Arrival Time").grid(row=0, column=1)
-tk.Label(frame_input, text="Burst Time").grid(row=0, column=2)
+tk.Label(frame_input, text="Process ID", **label_style).grid(row=0, column=0)
+tk.Label(frame_input, text="Arrival Time", **label_style).grid(row=0, column=1)
+tk.Label(frame_input, text="Burst Time", **label_style).grid(row=0, column=2)
 
-entry_pid = tk.Entry(frame_input, width=10)
-entry_arrival = tk.Entry(frame_input, width=10)
-entry_burst = tk.Entry(frame_input, width=10)
+entry_pid = ttk.Entry(frame_input, width=10)
+entry_arrival = ttk.Entry(frame_input, width=10)
+entry_burst = ttk.Entry(frame_input, width=10)
 
 entry_pid.grid(row=1, column=0)
 entry_arrival.grid(row=1, column=1)
 entry_burst.grid(row=1, column=2)
 
+Tooltip(entry_pid, "Enter the process ID (e.g., 1, A)")
+Tooltip(entry_arrival, "Time when the process arrives")
+Tooltip(entry_burst, "CPU burst time for the process")
+
 # --- Priority Field ---
-label_priority = tk.Label(frame_input, text="Priority")
-entry_priority = tk.Entry(frame_input, width=10)
+label_priority = tk.Label(frame_input, text="Priority", **label_style)
+entry_priority = ttk.Entry(frame_input, width=10)
 label_priority.grid(row=0, column=3)
 entry_priority.grid(row=1, column=3)
 label_priority.grid_remove()
 entry_priority.grid_remove()
+Tooltip(entry_priority, "Only used in Priority Scheduling")
 
 # --- Time Quantum Field ---
-frame_quantum = tk.Frame(root)
-label_quantum = tk.Label(frame_quantum, text="Time Quantum (for RR):")
-quantum_entry = tk.Entry(frame_quantum)
+frame_quantum = tk.Frame(root, bg="#f0f0f0")
+label_quantum = tk.Label(frame_quantum, text="Time Quantum (for RR):", **label_style)
+quantum_entry = ttk.Entry(frame_quantum)
 
 label_quantum.pack(side=tk.LEFT)
 quantum_entry.pack(side=tk.LEFT)
 frame_quantum.pack()
 frame_quantum.pack_forget()  # Initially hidden
 
+Tooltip(quantum_entry, "Only used in Round Robin algorithm")
+
 # --- Add Button ---
-btn_add = tk.Button(frame_input, text="Add Process", command=add_process)
+btn_add = ttk.Button(frame_input, text="Add Process", command=add_process)
 btn_add.grid(row=1, column=4, padx=10)
+add_hover_effect(btn_add)
+Tooltip(btn_add, "Add the process to the list")
 
 # --- Process List Display ---
-tk.Label(root, text="Process List:").pack()
-process_text = tk.Text(root, height=8, width=60)
+process_list_frame = ttk.LabelFrame(root, text="Process List", padding=10)
+process_list_frame.pack(pady=10, padx=10, fill="x")
+
+process_text = tk.Text(process_list_frame, height=8, width=60)
 process_text.pack(pady=5)
 
 # --- Simulation Output Display ---
-tk.Label(root, text="Simulation Output:").pack()
-output_text = tk.Text(root, height=10, width=60)
+output_frame = ttk.LabelFrame(root, text="Simulation Output", padding=10)
+output_frame.pack(pady=10, padx=10, fill="x")
+output_text = tk.Text(output_frame, height=10, width=60)
 output_text.pack(pady=5)
 
 # --- Placeholder for the Gantt chart canvas ---
 gantt_canvas = None
 
-button_frame = tk.Frame(root)
+# --- Button Frame (Delete/Reset) ---
+button_frame = tk.Frame(root, bg="#f0f0f0")
 button_frame.pack(pady=5)
-tk.Button(button_frame, text="Delete Process", command=delete_process).grid(row=0, column=1, padx=5)
-tk.Button(button_frame, text="Reset All", command=reset_all).grid(row=0, column=2, padx=5)
 
-# --- Frame to hold Run button and Checkbox side by side ---
-run_frame = tk.Frame(root)
+btn_delete = ttk.Button(button_frame, text="Delete Process", command=delete_process)
+btn_delete.grid(row=0, column=1, padx=5)
+add_hover_effect(btn_delete)
+
+btn_reset = ttk.Button(button_frame, text="Reset All", command=reset_all)
+btn_reset.grid(row=0, column=2, padx=5)
+add_hover_effect(btn_reset)
+
+Tooltip(btn_delete, "Remove the selected process from the list")
+Tooltip(btn_reset, "Clear all processes and outputs")
+
+# --- Run + Animation Toggle Frame ---
+run_frame = tk.Frame(root, bg="#f0f0f0")
 run_frame.pack(pady=5)
 
-# --- Run Button ---
-btn_run = tk.Button(run_frame, text="Run Simulation", command=run_simulation)
-btn_run.pack(side="left", padx=(0, 10))  # Padding on right to separate from checkbox
+btn_run = ttk.Button(run_frame, text="Run Simulation", command=run_simulation)
+btn_run.pack(side="left", padx=(0, 10))
+add_hover_effect(btn_run)
+Tooltip(btn_run, "Run the CPU scheduling simulation")
 
-# --- Animation Toggle Checkbox ---
 is_animated = tk.BooleanVar()
-animation_checkbox = tk.Checkbutton(run_frame, text="Animate Gantt Chart", variable=is_animated)
+animation_checkbox = tk.Checkbutton(run_frame, text="Animate Gantt Chart", variable=is_animated, bg="#f0f0f0")
 animation_checkbox.pack(side="left")
+Tooltip(animation_checkbox, "Toggle animated Gantt chart")
+
 
 # --- Algorithm Change Callback ---
 def on_algorithm_change(event=None):
